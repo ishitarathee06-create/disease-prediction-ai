@@ -1,5 +1,32 @@
 import streamlit as st
 
+st.set_page_config(page_title="Test")
+
+st.success("Step 1: Streamlit works")
+
+try:
+    from predictor import DiseasePredictor
+    st.success("Step 2: predictor imported")
+except Exception as e:
+    st.exception(e)
+    st.stop()
+
+try:
+    from utils.pdf_generator import generate_pdf
+    st.success("Step 3: pdf imported")
+except Exception as e:
+    st.exception(e)
+    st.stop()
+
+try:
+    from utils.history_reader import load_history
+    st.success("Step 4: history imported")
+except Exception as e:
+    st.exception(e)
+    st.stop()
+
+st.success("Everything imported successfully!")
+
 st.set_page_config(
     page_title="AI Disease Prediction Assistant",
     page_icon="🩺",
