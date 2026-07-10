@@ -1,48 +1,16 @@
 import streamlit as st
+from predictor import DiseasePredictor
+from utils.pdf_generator import generate_pdf
+from utils.history_reader import load_history
 
-st.set_page_config(page_title="Test")
-
-st.success("Step 1: Streamlit works")
-
-try:
-    from predictor import DiseasePredictor
-    st.success("Step 2: predictor imported")
-except Exception as e:
-    st.exception(e)
-    st.stop()
-
-try:
-    from utils.pdf_generator import generate_pdf
-    st.success("Step 3: pdf imported")
-except Exception as e:
-    st.exception(e)
-    st.stop()
-
-try:
-    from utils.history_reader import load_history
-    st.success("Step 4: history imported")
-except Exception as e:
-    st.exception(e)
-    st.stop()
-
-st.success("Everything imported successfully!")
-
+# -----------------------
+# Page Settings
+# -----------------------
 st.set_page_config(
     page_title="AI Disease Prediction Assistant",
     page_icon="🩺",
     layout="wide"
 )
-
-st.write("App started")
-
-from predictor import DiseasePredictor
-st.write("Predictor imported")
-
-from utils.pdf_generator import generate_pdf
-st.write("PDF imported")
-
-from utils.history_reader import load_history
-st.write("History imported")
 
 # -----------------------
 # Load Predictor
@@ -73,7 +41,7 @@ Enter your symptoms in natural language.
 """)
 
 # -----------------------
-# Input
+# User Input
 # -----------------------
 text = st.text_area(
     "📝 Describe your symptoms",
@@ -81,55 +49,75 @@ text = st.text_area(
     placeholder="Example: I have fever, headache and chills."
 )
 
+# -----------------------
+# Prediction
+# -----------------------
 if st.button("🔍 Predict Disease"):
 
-    result = predictor.predict(text)
-
-    st.subheader("🦠 Predicted Disease")
-
-    if result["confidence"] < 30:
-        st.warning(
-            "⚠️ The prediction confidence is low. Please enter more symptoms or consult a healthcare professional."
-        )
-        st.info(f"Most likely prediction: {result['disease']}")
+    if text.strip() == "":
+        st.warning("Please enter your symptoms.")
     else:
-        st.success(result["disease"])
+        result = predictor.predict(text)
 
-    st.subheader("📈 Confidence")
-    st.write(f"{result['confidence']} %")
+        st.subheader("🦠 Predicted Disease")
 
-    st.subheader("🩺 Detected Symptoms")
-    st.write(", ".join(result["symptoms"]))
+        if result["confidence"] < 30:
+            st.warning(
+                "Prediction confidence is low. Please enter more symptoms or consult a healthcare professional."
+            )
+            st.info(f"Most likely prediction: {result['disease']}")
+        else:
+            st.success(result["disease"])
 
-    st.subheader("🏆 Top 3 Predictions")
+        st.subheader("📈 Confidence")
+        st.write(f"{result['confidence']} %")
 
-    for disease in result["top3"]:
-        st.write(
-            f"• {disease['disease']} ({disease['confidence']}%)"
-        )
+        st.subheader("🩺 Detected Symptoms")
+        st.write(", ".join(result["symptoms"]))
 
-    st.subheader("📖 Description")
-    st.write(result["description"])
+        st.subheader("🏆 Top 3 Predictions")
 
-    st.subheader("💊 Precautions")
+        if result["top3"]:
+            medals = ["🥇", "🥈", "🥉"]
 
-    for p in result["precautions"]:
-        st.write("•", p)
+            for i, disease in enumerate(result["top3"]):
+                st.write(
+                    f"{medals[i]} {disease['disease']} ({disease['confidence']}%)"
+                )
 
-    pdf_path = generate_pdf(result)
+        st.subheader("📖 Disease Description")
+        st.write(result["description"])
 
-    with open(pdf_path, "rb") as f:
-        st.download_button(
-            "📄 Download PDF Report",
-            data=f,
-            file_name="Disease_Report.pdf",
-            mime="application/pdf"
-        )
+        st.subheader("💊 Precautions")
 
+        if result["precautions"]:
+            for precaution in result["precautions"]:
+                st.write(f"• {precaution}")
+        else:
+            st.write("No precautions available.")
+
+        # -----------------------
+        # PDF Download
+        # -----------------------
+        pdf_path = generate_pdf(result)
+
+        with open(pdf_path, "rb") as pdf_file:
+            st.download_button(
+                label="📄 Download PDF Report",
+                data=pdf_file,
+                file_name="Disease_Report.pdf",
+                mime="application/pdf"
+            )
+
+# -----------------------
+# History
+# -----------------------
 st.divider()
 
 st.header("📜 Prediction History")
 
-history = load_history()
-
-st.dataframe(history, use_container_width=True)
+try:
+    history = load_history()
+    st.dataframe(history, use_container_width=True)
+except Exception:
+    st.info("No prediction history available yet.")
