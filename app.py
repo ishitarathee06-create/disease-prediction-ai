@@ -1,96 +1,35 @@
-import gradio as gr
+import streamlit as st
 from predictor import DiseasePredictor
 from utils.pdf_generator import generate_pdf
 from utils.history_reader import load_history
 
-# -----------------------------
-# Load predictor
-# -----------------------------
-predictor = DiseasePredictor()
+# -----------------------
+# Page Settings
+# -----------------------
+st.set_page_config(
+    page_title="AI Disease Prediction Assistant",
+    page_icon="🩺",
+    layout="wide"
+)
 
+# -----------------------
+# Load Predictor
+# -----------------------
+@st.cache_resource
+def load_predictor():
+    return DiseasePredictor()
 
-# -----------------------------
-# Prediction Function
-# -----------------------------
-def predict(text):
+predictor = load_predictor()
 
-    result = predictor.predict(text)
+# -----------------------
+# Logo
+# -----------------------
+st.image("assets/logo.png", width=120)
 
-    symptoms = ", ".join(result["symptoms"])
+st.title("🩺 AI Disease Prediction Assistant")
 
-    precautions = ""
-
-    if result["precautions"]:
-        precautions = "\n".join(
-            ["• " + p for p in result["precautions"]]
-        )
-
-    top3 = ""
-
-    if result["top3"]:
-
-        medals = ["🥇", "🥈", "🥉"]
-
-        for i, disease in enumerate(result["top3"]):
-
-            top3 += (
-                f"{medals[i]} "
-                f"{disease['disease']} "
-                f"({disease['confidence']}%)\n"
-            )
-
-    return (
-        result["disease"],
-        f"{result['confidence']} %",
-        symptoms,
-        top3,
-        result["description"],
-        precautions,
-    )
-
-
-# -----------------------------
-# PDF Generator
-# -----------------------------
-def generate_report(text):
-
-    if text.strip() == "":
-        return None
-
-    result = predictor.predict(text)
-
-    pdf_path = generate_pdf(result)
-
-    return pdf_path
-
-
-# -----------------------------
-# Load CSS
-# -----------------------------
-with open("assets/style.css", "r", encoding="utf-8") as f:
-    css = f.read()
-
-
-# -----------------------------
-# UI
-# -----------------------------
-with gr.Blocks(
-    title="AI Disease Prediction Assistant",
-    css=css
-) as demo:
-
-    gr.Image(
-        value="assets/logo.png",
-        width=120,
-        show_label=False,
-        interactive=False,
-        container=False,
-    )
-
-    gr.Markdown("""
-# 🩺 AI Disease Prediction Assistant
-
-### Enter your symptoms in natural language.
+st.markdown("""
+Enter your symptoms in natural language.
 
 ### Examples
 
@@ -98,127 +37,67 @@ with gr.Blocks(
 - I have itching, skin rash and nodal skin eruptions
 - I have vomiting and stomach pain
 
-⚠ **This system is for educational purposes only. It is NOT a medical diagnosis.**
+⚠️ **This tool is for educational purposes only. It is NOT a medical diagnosis.**
 """)
 
-    # ============================
-    # Prediction Tab
-    # ============================
+# -----------------------
+# Input
+# -----------------------
+text = st.text_area(
+    "📝 Describe your symptoms",
+    height=180,
+    placeholder="Example: I have fever, headache and chills."
+)
 
-    with gr.Tab("🩺 Prediction"):
+if st.button("🔍 Predict Disease"):
 
-        with gr.Row():
+    result = predictor.predict(text)
 
-            # LEFT COLUMN
-            with gr.Column():
+    st.subheader("🦠 Predicted Disease")
 
-                symptom_input = gr.Textbox(
-                    label="📝 Describe Your Symptoms",
-                    placeholder="Example:\nI have fever, headache and chills.",
-                    lines=8,
-                )
+    if result["confidence"] < 30:
+        st.warning(
+            "⚠️ The prediction confidence is low. Please enter more symptoms or consult a healthcare professional."
+        )
+        st.info(f"Most likely prediction: {result['disease']}")
+    else:
+        st.success(result["disease"])
 
-                predict_btn = gr.Button(
-                    "🔍 Predict Disease",
-                    variant="primary",
-                )
+    st.subheader("📈 Confidence")
+    st.write(f"{result['confidence']} %")
 
-                clear_btn = gr.Button(
-                    "🗑 Clear"
-                )
+    st.subheader("🩺 Detected Symptoms")
+    st.write(", ".join(result["symptoms"]))
 
-            # RIGHT COLUMN
-            with gr.Column():
+    st.subheader("🏆 Top 3 Predictions")
 
-                disease = gr.Textbox(
-                    label="🦠 Predicted Disease"
-                )
-
-                confidence = gr.Textbox(
-                    label="📈 Confidence"
-                )
-
-                symptoms = gr.Textbox(
-                    label="🩺 Detected Symptoms"
-                )
-
-                top3 = gr.Textbox(
-                    label="🏆 Top 3 Predictions",
-                    lines=5,
-                )
-
-                description = gr.Textbox(
-                    label="📖 Disease Description",
-                    lines=6,
-                )
-
-                precautions = gr.Textbox(
-                    label="💊 Precautions",
-                    lines=6,
-                )
-
-                download_btn = gr.Button(
-                    "📄 Generate PDF Report"
-                )
-
-                pdf_file = gr.File(
-                    label="📄 Download Report"
-                )
-
-    # ============================
-    # History Tab
-    # ============================
-
-    with gr.Tab("📜 History"):
-
-        history_table = gr.Dataframe(
-            value=load_history(),
-            interactive=False,
-            wrap=True,
-            label="Prediction History"
+    for disease in result["top3"]:
+        st.write(
+            f"• {disease['disease']} ({disease['confidence']}%)"
         )
 
-        refresh_btn = gr.Button("🔄 Refresh History")
+    st.subheader("📖 Description")
+    st.write(result["description"])
 
-        refresh_btn.click(
-            fn=load_history,
-            outputs=history_table
+    st.subheader("💊 Precautions")
+
+    for p in result["precautions"]:
+        st.write("•", p)
+
+    pdf_path = generate_pdf(result)
+
+    with open(pdf_path, "rb") as f:
+        st.download_button(
+            "📄 Download PDF Report",
+            data=f,
+            file_name="Disease_Report.pdf",
+            mime="application/pdf"
         )
 
-    # ============================
-    # Button Events
-    # ============================
+st.divider()
 
-    predict_btn.click(
-        fn=predict,
-        inputs=symptom_input,
-        outputs=[
-            disease,
-            confidence,
-            symptoms,
-            top3,
-            description,
-            precautions,
-        ],
-    )
+st.header("📜 Prediction History")
 
-    download_btn.click(
-        fn=generate_report,
-        inputs=symptom_input,
-        outputs=pdf_file,
-    )
+history = load_history()
 
-    clear_btn.click(
-        lambda: ("", "", "", "", "", "", ""),
-        outputs=[
-            symptom_input,
-            disease,
-            confidence,
-            symptoms,
-            top3,
-            description,
-            precautions,
-        ],
-    )
-
-demo.launch()
+st.dataframe(history, use_container_width=True)
