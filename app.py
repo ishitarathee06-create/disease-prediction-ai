@@ -1,7 +1,18 @@
 import streamlit as st
+
+st.write("App started")
+
 from predictor import DiseasePredictor
+
+st.write("Predictor imported")
+
 from utils.pdf_generator import generate_pdf
+
+st.write("PDF imported")
+
 from utils.history_reader import load_history
+
+st.write("History imported")
 
 # -----------------------
 # Page Settings
