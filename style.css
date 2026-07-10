@@ -1,0 +1,22 @@
+.gradio-container{
+    max-width:1300px !important;
+    margin:auto;
+}
+
+h1{
+    text-align:center;
+    color:#2E86DE;
+}
+
+button{
+    border-radius:12px !important;
+    font-weight:bold !important;
+}
+
+textarea{
+    font-size:16px !important;
+}
+
+footer{
+    visibility:hidden;
+}
